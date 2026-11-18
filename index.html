@@ -7,6 +7,9 @@
   
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Supabase JS SDK v2 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   
   <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -129,7 +132,8 @@
               value="example.com" 
               placeholder="e.g. target.com"
               class="bg-transparent border-none text-white text-xs font-mono focus:outline-none w-full"
-              oninput="updateConfig()"
+              oninput="updateConfig(false)"
+              onchange="handleDomainCommit()"
             >
             <button onclick="resetConfig()" title="Reset variables" class="text-xs text-cyber-muted hover:text-white px-1.5">
               <i class="fa-solid fa-rotate-left"></i>
@@ -175,23 +179,58 @@
         </div>
       </div>
 
+      <!-- Supabase Cloud Sync & Auth Bar -->
+      <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-cyber-border/50 text-xs font-mono">
+        <div class="flex items-center gap-2">
+          <span id="syncStatusBadge" class="px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-cyber-border">
+            <i class="fa-solid fa-cloud-slash mr-1"></i> Offline (LocalStorage)
+          </span>
+          <select id="savedTargetsSelect" onchange="switchCloudTarget(this.value)" class="hidden bg-cyber-card border border-cyber-border rounded px-2 py-1 text-emerald-400 focus:outline-none">
+            <option value="">-- Saved Cloud Targets --</option>
+          </select>
+        </div>
+
+        <!-- Login Form (shown when signed out) -->
+        <div id="supabaseAuthForm" class="flex flex-wrap items-center gap-1.5">
+          <input type="email" id="sbEmail" placeholder="Supabase Email" class="bg-cyber-card border border-cyber-border rounded px-2 py-1 text-white w-44 focus:outline-none focus:border-emerald-500">
+          <input type="password" id="sbPassword" placeholder="Password" onkeydown="if(event.key==='Enter') loginSupabase()" class="bg-cyber-card border border-cyber-border rounded px-2 py-1 text-white w-36 focus:outline-none focus:border-emerald-500">
+          <button onclick="loginSupabase()" class="bg-emerald-500 hover:bg-emerald-600 text-black font-semibold px-2.5 py-1 rounded transition">
+            <i class="fa-solid fa-right-to-bracket mr-1"></i> Sync Login
+          </button>
+        </div>
+
+        <!-- Signed-In Controls (shown when signed in) -->
+        <div id="supabaseUserBar" class="hidden flex items-center gap-2">
+          <span id="sbUserEmail" class="text-cyber-muted"></span>
+          <button onclick="forceCloudPull()" class="bg-cyber-card hover:bg-cyber-border text-emerald-400 border border-cyber-border px-2 py-1 rounded transition" title="Pull latest from Supabase">
+            <i class="fa-solid fa-cloud-arrow-down mr-1"></i> Pull
+          </button>
+          <button onclick="pushToSupabase()" class="bg-cyber-card hover:bg-cyber-border text-blue-400 border border-cyber-border px-2 py-1 rounded transition" title="Force push current state to Supabase">
+            <i class="fa-solid fa-cloud-arrow-up mr-1"></i> Push
+          </button>
+          <button onclick="logoutSupabase()" class="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 px-2 py-1 rounded transition">
+            Logout
+          </button>
+        </div>
+      </div>
+
       <!-- Collapsible Advanced CLI Variables Drawer -->
       <div id="advVarsDrawer" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-2 border-t border-cyber-border/60 text-xs font-mono">
         <div class="flex items-center bg-cyber-card border border-cyber-border rounded px-2.5 py-1">
           <span class="text-cyber-muted mr-2">WORDLIST:</span>
-          <input type="text" id="varWordlist" value="/usr/share/seclists/Discovery/Web-Content/raft-medium-words.txt" oninput="updateConfig()" class="bg-transparent text-amber-400 focus:outline-none w-full text-[11px]">
+          <input type="text" id="varWordlist" value="/usr/share/seclists/Discovery/Web-Content/raft-medium-words.txt" oninput="updateConfig(true)" class="bg-transparent text-amber-400 focus:outline-none w-full text-[11px]">
         </div>
         <div class="flex items-center bg-cyber-card border border-cyber-border rounded px-2.5 py-1">
           <span class="text-cyber-muted mr-2">OOB HOST:</span>
-          <input type="text" id="varOob" value="oob.interact.sh" oninput="updateConfig()" class="bg-transparent text-purple-400 focus:outline-none w-full text-[11px]">
+          <input type="text" id="varOob" value="oob.interact.sh" oninput="updateConfig(true)" class="bg-transparent text-purple-400 focus:outline-none w-full text-[11px]">
         </div>
         <div class="flex items-center bg-cyber-card border border-cyber-border rounded px-2.5 py-1">
           <span class="text-cyber-muted mr-2">HEADER:</span>
-          <input type="text" id="varHeader" value="X-Bug-Bounty: HackerOne-Researcher" oninput="updateConfig()" class="bg-transparent text-blue-400 focus:outline-none w-full text-[11px]">
+          <input type="text" id="varHeader" value="X-Bug-Bounty: HackerOne-Researcher" oninput="updateConfig(true)" class="bg-transparent text-blue-400 focus:outline-none w-full text-[11px]">
         </div>
         <div class="flex items-center bg-cyber-card border border-cyber-border rounded px-2.5 py-1">
           <span class="text-cyber-muted mr-2">RATE/THREADS:</span>
-          <input type="text" id="varRate" value="50" oninput="updateConfig()" class="bg-transparent text-emerald-400 focus:outline-none w-full text-[11px]">
+          <input type="text" id="varRate" value="50" oninput="updateConfig(true)" class="bg-transparent text-emerald-400 focus:outline-none w-full text-[11px]">
         </div>
       </div>
 
@@ -279,7 +318,7 @@
             <i class="fa-solid fa-network-wired text-amber-400"></i> Censys SSL
           </button>
           <button onclick="openOsintLink('urlscan')" class="bg-cyber-bg hover:bg-cyber-border text-slate-200 p-2 rounded border border-cyber-border flex items-center gap-2 transition text-left">
-            <i class="fa-solid fa-magnifying-glass-Location text-emerald-400"></i> URLScan.io
+            <i class="fa-solid fa-magnifying-glass-location text-emerald-400"></i> URLScan.io
           </button>
           <button onclick="openOsintLink('dork_files')" class="bg-cyber-bg hover:bg-cyber-border text-slate-200 p-2 rounded border border-cyber-border flex items-center gap-2 transition text-left">
             <i class="fa-brands fa-google text-blue-400"></i> Exposed Docs
@@ -385,6 +424,16 @@
   </div>
 
   <script>
+    // ==========================================
+    // 1. SUPABASE CONFIGURATION (REPLACE KEYS)
+    // ==========================================
+    const SUPABASE_URL = 'https://iqfshkpilcernulloizy.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_IrZj4nuSF-gaJFTGBRee3A_brj92dO9';
+    const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let currentUser = null;
+    let syncTimer = null;
+
     // Global Configuration & Persistent State
     let config = {
       domain: 'example.com',
@@ -400,7 +449,7 @@
     let notesState = {};     // { [id]: "string" }
     let openNotes = {};      // { [id]: boolean }
 
-    // Expanded v7.0 Pro Methodology & Tool Tree (All Original v6.0 Nodes + Advanced Tooling)
+    // Expanded v7.0 Pro Methodology & Tool Tree
     const bugBountyTreeData = [
       {
         id: 'recon_wildcard',
@@ -677,7 +726,205 @@
       }
     ];
 
-    // Load Persistent State from LocalStorage
+    // ==========================================
+    // 2. SUPABASE CLOUD SYNC & AUTH ENGINE
+    // ==========================================
+    function setSyncBadge(state, text) {
+      const badge = document.getElementById('syncStatusBadge');
+      if (!badge) return;
+      const styles = {
+        offline: 'bg-slate-800 text-slate-400 border-cyber-border',
+        syncing: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
+        synced: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
+        error: 'bg-red-500/10 text-red-400 border-red-500/30'
+      };
+      const icons = {
+        offline: 'fa-cloud-slash',
+        syncing: 'fa-rotate fa-spin',
+        synced: 'fa-cloud-check',
+        error: 'fa-triangle-exclamation'
+      };
+      badge.className = `px-2 py-0.5 rounded border ${styles[state] || styles.offline}`;
+      badge.innerHTML = `<i class="fa-solid ${icons[state] || icons.offline} mr-1"></i> ${escapeHtml(text)}`;
+    }
+
+    async function initSupabaseAuth() {
+      if (SUPABASE_URL.includes('YOUR_PROJECT_ID')) {
+        setSyncBadge('offline', 'Offline (Configure Supabase Keys)');
+        return;
+      }
+
+      const { data: { session } } = await sbClient.auth.getSession();
+      await handleAuthSession(session);
+
+      sbClient.auth.onAuthStateChange(async (_event, session) => {
+        await handleAuthSession(session);
+      });
+    }
+
+    async function handleAuthSession(session) {
+      const authForm = document.getElementById('supabaseAuthForm');
+      const userBar = document.getElementById('supabaseUserBar');
+      const targetSelect = document.getElementById('savedTargetsSelect');
+
+      if (session && session.user) {
+        currentUser = session.user;
+        authForm.classList.add('hidden');
+        userBar.classList.remove('hidden');
+        targetSelect.classList.remove('hidden');
+        document.getElementById('sbUserEmail').innerText = currentUser.email;
+        await refreshSavedTargetsList();
+        await loadFromSupabase(config.domain);
+      } else {
+        currentUser = null;
+        authForm.classList.remove('hidden');
+        userBar.classList.add('hidden');
+        targetSelect.classList.add('hidden');
+        setSyncBadge('offline', 'Offline (LocalStorage)');
+      }
+    }
+
+    async function loginSupabase() {
+      if (SUPABASE_URL.includes('YOUR_PROJECT_ID')) {
+        alert('Please set SUPABASE_URL and SUPABASE_ANON_KEY inside index.html first.');
+        return;
+      }
+      const email = document.getElementById('sbEmail').value.trim();
+      const password = document.getElementById('sbPassword').value;
+      if (!email || !password) return showToast('Enter Supabase email and password');
+
+      setSyncBadge('syncing', 'Authenticating...');
+      const { error } = await sbClient.auth.signInWithPassword({ email, password });
+      if (error) {
+        setSyncBadge('error', 'Auth Failed');
+        alert('Login failed: ' + error.message);
+      } else {
+        showToast('Connected to Supabase Cloud!');
+      }
+    }
+
+    async function logoutSupabase() {
+      await sbClient.auth.signOut();
+      showToast('Logged out of cloud sync');
+    }
+
+    async function refreshSavedTargetsList() {
+      if (!currentUser) return;
+      const { data, error } = await sbClient
+        .from('engagements')
+        .select('domain, updated_at')
+        .order('updated_at', { ascending: false });
+
+      if (error) return;
+      const select = document.getElementById('savedTargetsSelect');
+      select.innerHTML = '<option value="">-- Saved Cloud Targets --</option>' +
+        data.map(row => `<option value="${escapeHtml(row.domain)}" ${row.domain === config.domain ? 'selected' : ''}>${escapeHtml(row.domain)}</option>`).join('');
+    }
+
+    async function switchCloudTarget(selectedDomain) {
+      if (!selectedDomain) return;
+      document.getElementById('targetDomainInput').value = selectedDomain;
+      config.domain = selectedDomain;
+      await loadFromSupabase(selectedDomain);
+      updateConfig(false);
+    }
+
+    async function handleDomainCommit() {
+      const committedDomain = document.getElementById('targetDomainInput').value.trim() || 'example.com';
+      config.domain = committedDomain;
+      saveToLocalStorageOnly();
+      if (currentUser) {
+        await loadFromSupabase(committedDomain);
+      }
+    }
+
+    async function forceCloudPull() {
+      await loadFromSupabase(config.domain);
+      showToast(`Pulled latest state for ${config.domain}`);
+    }
+
+    async function loadFromSupabase(domainName) {
+      if (!currentUser || !domainName) return;
+      setSyncBadge('syncing', `Loading ${domainName}...`);
+
+      const { data, error } = await sbClient
+        .from('engagements')
+        .select('*')
+        .eq('domain', domainName)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Supabase load error:', error);
+        setSyncBadge('error', 'Cloud Read Error');
+        return;
+      }
+
+      if (data) {
+        config = { ...config, ...(data.config || {}), domain: data.domain };
+        checklistState = data.checklist_state || {};
+        flaggedState = data.flagged_state || {};
+        notesState = data.notes_state || {};
+        document.getElementById('globalScratchpad').value = data.scratchpad || '';
+
+        document.getElementById('targetDomainInput').value = config.domain;
+        document.getElementById('varWordlist').value = config.wordlist;
+        document.getElementById('varOob').value = config.oob;
+        document.getElementById('varHeader').value = config.header;
+        document.getElementById('varRate').value = config.rate;
+
+        saveToLocalStorageOnly();
+        updateConfig(false);
+        setSyncBadge('synced', `Synced: ${domainName}`);
+        refreshSavedTargetsList();
+      } else {
+        await pushToSupabase();
+      }
+    }
+
+    function scheduleCloudSync() {
+      if (!currentUser) return;
+      setSyncBadge('syncing', 'Saving...');
+      clearTimeout(syncTimer);
+      syncTimer = setTimeout(() => {
+        pushToSupabase();
+      }, 800);
+    }
+
+    async function pushToSupabase() {
+      if (!currentUser) return;
+      setSyncBadge('syncing', 'Pushing...');
+      const payload = {
+        user_id: currentUser.id,
+        domain: config.domain,
+        config: {
+          wordlist: config.wordlist,
+          oob: config.oob,
+          header: config.header,
+          rate: config.rate
+        },
+        checklist_state: checklistState,
+        flagged_state: flaggedState,
+        notes_state: notesState,
+        scratchpad: document.getElementById('globalScratchpad').value || '',
+        updated_at: new Date().toISOString()
+      };
+
+      const { error } = await sbClient
+        .from('engagements')
+        .upsert(payload, { onConflict: 'user_id,domain' });
+
+      if (error) {
+        console.error('Supabase sync error:', error);
+        setSyncBadge('error', 'Sync Failed');
+      } else {
+        setSyncBadge('synced', `Synced: ${config.domain}`);
+        refreshSavedTargetsList();
+      }
+    }
+
+    // ==========================================
+    // 3. LOCALSTORAGE & STATE PERSISTENCE
+    // ==========================================
     function loadState() {
       try {
         const savedChk = localStorage.getItem('bb_v7_checklist');
@@ -705,13 +952,19 @@
       }
     }
 
-    function saveState() {
+    function saveToLocalStorageOnly() {
+      localStorage.setItem('bb_v7_checklist', JSON.stringify(checklistState));
+      localStorage.setItem('bb_v7_flagged', JSON.stringify(flaggedState));
+      localStorage.setItem('bb_v7_notes', JSON.stringify(notesState));
+      localStorage.setItem('bb_v7_config', JSON.stringify(config));
+      localStorage.setItem('bb_v7_scratchpad', document.getElementById('globalScratchpad').value || '');
+    }
+
+    function saveState(shouldSyncCloud = true) {
       try {
-        localStorage.setItem('bb_v7_checklist', JSON.stringify(checklistState));
-        localStorage.setItem('bb_v7_flagged', JSON.stringify(flaggedState));
-        localStorage.setItem('bb_v7_notes', JSON.stringify(notesState));
-        localStorage.setItem('bb_v7_config', JSON.stringify(config));
+        saveToLocalStorageOnly();
         updateProgressStats();
+        if (shouldSyncCloud) scheduleCloudSync();
       } catch (e) {
         console.error('Error saving state:', e);
       }
@@ -719,6 +972,7 @@
 
     function saveGlobalScratchpad(val) {
       localStorage.setItem('bb_v7_scratchpad', val);
+      scheduleCloudSync();
     }
 
     function toggleAdvVars() {
@@ -736,7 +990,7 @@
         .replace(/{rate}/g, config.rate);
     }
 
-    function updateConfig() {
+    function updateConfig(shouldSyncCloud = true) {
       config.domain = document.getElementById('targetDomainInput').value.trim() || 'example.com';
       config.wordlist = document.getElementById('varWordlist').value.trim() || 'wordlist.txt';
       config.oob = document.getElementById('varOob').value.trim() || 'oob.interact.sh';
@@ -751,7 +1005,7 @@
       document.getElementById('pipe2Cmd').innerText =
         `echo "${config.domain}" | gau | gf xss | uro | dalfox pipe --blind https://${config.oob} -H "${config.header}"`;
 
-      saveState();
+      saveState(shouldSyncCloud);
       renderTree(true);
     }
 
@@ -761,7 +1015,7 @@
       document.getElementById('varOob').value = 'oob.interact.sh';
       document.getElementById('varHeader').value = 'X-Bug-Bounty: HackerOne-Researcher';
       document.getElementById('varRate').value = '50';
-      updateConfig();
+      updateConfig(true);
       showToast('CLI variables reset to defaults!');
     }
 
@@ -952,13 +1206,13 @@
 
     function toggleCheckItem(nodeId, isChecked) {
       checklistState[nodeId] = isChecked;
-      saveState();
+      saveState(true);
       renderTree(true);
     }
 
     function toggleFlagItem(nodeId) {
       flaggedState[nodeId] = !flaggedState[nodeId];
-      saveState();
+      saveState(true);
       renderTree(true);
     }
 
@@ -974,7 +1228,7 @@
       } else {
         delete notesState[nodeId];
       }
-      saveState();
+      saveState(true);
     }
 
     // Filter Mode & Search Engine
@@ -1156,7 +1410,7 @@
           document.getElementById('varOob').value = config.oob;
           document.getElementById('varHeader').value = config.header;
           document.getElementById('varRate').value = config.rate;
-          updateConfig();
+          updateConfig(true);
           showToast('Engagement state restored!');
         } catch (err) {
           alert('Invalid JSON backup file.');
@@ -1178,12 +1432,12 @@
     }
 
     function clearChecklistProgress() {
-      if (confirm('Reset all checklist checkmarks, flags, and notes for this target?')) {
+      if (confirm(`Reset all checklist checkmarks, flags, and notes for ${config.domain}?`)) {
         checklistState = {};
         flaggedState = {};
         notesState = {};
         openNotes = {};
-        saveState();
+        saveState(true);
         renderTree(false);
         showToast('All progress & notes cleared!');
       }
@@ -1231,9 +1485,10 @@
       return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     }
 
-    window.onload = function() {
+    window.onload = async function() {
       loadState();
-      updateConfig();
+      updateConfig(false);
+      await initSupabaseAuth();
     };
   </script>
 </body>
